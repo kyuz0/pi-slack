@@ -154,3 +154,17 @@ test('search tool requires SLACK_USER_TOKEN', async () => {
     if (origUser) process.env.SLACK_USER_TOKEN = origUser;
   }
 });
+
+test('file-based credentials direct setup to sandbox settings', async () => {
+  const original = process.env.SLACK_CREDENTIALS_FILE;
+  process.env.SLACK_CREDENTIALS_FILE = '/tmp/pi-slack-no-such-credential-file.json';
+  try {
+    const { tools } = loadExtension();
+    const result = await tools.find(tool => tool.name === 'slack_list_channels')!.execute('missing', {});
+    expect(JSON.stringify(result)).toContain('Communications settings');
+    expect(JSON.stringify(result)).not.toContain('Set this environment variable');
+  } finally {
+    if (original === undefined) delete process.env.SLACK_CREDENTIALS_FILE;
+    else process.env.SLACK_CREDENTIALS_FILE = original;
+  }
+});

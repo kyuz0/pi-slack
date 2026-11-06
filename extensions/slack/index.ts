@@ -58,6 +58,10 @@ function errorResult(text: string, details?: Record<string, unknown>) {
 
 function missingCredentials(which: 'bot' | 'user') {
   const envVar = which === 'bot' ? 'SLACK_BOT_TOKEN' : 'SLACK_USER_TOKEN';
+  if (process.env.SLACK_CREDENTIALS_FILE) {
+    return errorResult(`Missing Slack ${which} token. Configure credentials using your sandbox's Communications settings. Do not paste tokens into the chat.`,
+      { error: 'missing_credentials', missing: [envVar] });
+  }
   return errorResult(
     `❌ Missing ${envVar}.\n\nSet this environment variable to enable this Slack tool.`,
     { error: 'missing_credentials', missing: [envVar] },
@@ -447,6 +451,11 @@ export default function slackExtension(pi: ExtensionAPI) {
       lines.push(
         `User Token: ${credStatus.hasUserToken ? '✅ Set' : '⚠️ Missing (SLACK_USER_TOKEN) — search disabled'}`,
       );
+      if (process.env.SLACK_CREDENTIALS_FILE) {
+        lines[2] = `Bot Token: ${credStatus.hasBotToken ? 'Set' : 'Missing'}`;
+        lines[3] = `User Token: ${credStatus.hasUserToken ? 'Set' : 'Missing — search disabled'}`;
+        lines.push('Configure credentials using your sandbox Communications settings.');
+      }
       lines.push('');
 
       if (config) {
