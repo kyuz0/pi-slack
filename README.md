@@ -62,6 +62,13 @@ export SLACK_BOT_TOKEN=xoxb-...
 export SLACK_USER_TOKEN=xoxp-...  # Optional, needed for slack_search
 ```
 
+Alternatively, set `SLACK_CREDENTIALS_FILE` to a private JSON file containing
+`botToken` and, optionally, `userToken`. Restrict the file to your account
+(`chmod 600`). This keeps tokens out of child-process environments. When selected,
+the file replaces the token environment variables and is read on each tool call.
+Your execution sandbox must separately protect the file from agent shell tools.
+
+
 ### 5. Invite the bot to channels
 
 A bot token can only read channels the bot is **a member of**. In each Slack channel you want the agent to read, type:

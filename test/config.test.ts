@@ -102,3 +102,33 @@ describe('getCredentialStatus', () => {
     expect(status.hasUserToken).toBe(false);
   });
 });
+
+
+describe('credential files', () => {
+  afterEach(() => { delete process.env.SLACK_CREDENTIALS_FILE; delete process.env.SLACK_BOT_TOKEN; });
+
+  test('loads changes without exporting secrets to the environment', async () => {
+    const path = join(TEST_DIR, 'credentials.json');
+    process.env.SLACK_CREDENTIALS_FILE = path;
+    delete process.env.SLACK_BOT_TOKEN;
+    await writeFile(path, JSON.stringify({botToken: 'xoxb-first', userToken: 'xoxp-test'}));
+    expect(getCredentials()).toEqual({botToken: 'xoxb-first', userToken: 'xoxp-test'});
+    expect(process.env.SLACK_BOT_TOKEN).toBeUndefined();
+    await writeFile(path, JSON.stringify({botToken: 'xoxb-second'}));
+    expect(getCredentials()?.botToken).toBe('xoxb-second');
+    expect(getCredentialStatus().hasUserToken).toBe(false);
+  });
+
+  test('never falls back to environment when a file was selected', async () => {
+    const path = join(TEST_DIR, 'credentials.json');
+    process.env.SLACK_CREDENTIALS_FILE = path;
+    process.env.SLACK_BOT_TOKEN = 'xoxb-environment';
+    expect(getCredentials()).toBeNull();
+    await writeFile(path, '{}');
+    expect(getCredentials()).toBeNull();
+    await writeFile(path, '{invalid secret');
+    expect(getCredentials).toThrow('Could not read Slack credentials file');
+    await writeFile(path, '{"botToken":42}');
+    expect(getCredentials).toThrow('Slack credentials must be strings');
+  });
+});

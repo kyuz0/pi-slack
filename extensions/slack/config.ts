@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -78,19 +79,34 @@ export interface SlackCredentials {
 }
 
 export function getCredentials(): SlackCredentials | null {
+  // A selected file is authoritative, including when it has no saved tokens.
+  // Keep secrets out of the environment inherited by shell tools.
+  const path = process.env.SLACK_CREDENTIALS_FILE;
+  if (path) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(path, 'utf8'));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw new Error('Could not read Slack credentials file');
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Slack credentials file must contain an object');
+    }
+    const { botToken, userToken } = parsed as Record<string, unknown>;
+    if ((botToken !== undefined && typeof botToken !== 'string') ||
+        (userToken !== undefined && typeof userToken !== 'string')) {
+      throw new Error('Slack credentials must be strings');
+    }
+    return botToken ? { botToken: botToken as string, userToken: userToken as string || undefined } : null;
+  }
   const botToken = process.env.SLACK_BOT_TOKEN;
   if (!botToken) return null;
-
   const userToken = process.env.SLACK_USER_TOKEN || undefined;
   return { botToken, userToken };
 }
 
-export function getCredentialStatus(): {
-  hasBotToken: boolean;
-  hasUserToken: boolean;
-} {
-  return {
-    hasBotToken: Boolean(process.env.SLACK_BOT_TOKEN),
-    hasUserToken: Boolean(process.env.SLACK_USER_TOKEN),
-  };
+export function getCredentialStatus(): { hasBotToken: boolean; hasUserToken: boolean } {
+  const credentials = getCredentials();
+  return { hasBotToken: Boolean(credentials?.botToken), hasUserToken: Boolean(credentials?.userToken) };
 }
